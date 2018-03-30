@@ -44,13 +44,14 @@ insert(Key, Value, Time)  ->
 
 
 lookup(Key) ->
-	[{_, _, Time}] = ets:lookup(?MODULE, Key),
 	Now = timenow(),
-	if 
-		Now > Time ->  
-			"This Key deleted";
-		true -> 
-			ets:lookup(?MODULE, Key)
+	case ets:lookup(?MODULE, Key) of 
+		[] ->
+			undefined;
+		[{Key, Value, Time}] when (Now < Time) ->
+			[{Key, Value, Time}];
+		[{Key, _Value, Time}] when (Now >= Time) ->
+			key_deleted
 	end.
 
 lookup_by_date(DateFrom, DateTo) ->
