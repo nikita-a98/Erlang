@@ -9,10 +9,19 @@ create(Opt) ->
 
 delete_obsolete() ->
 	Now = timenow(),
-	Fun = ets:fun2ms(fun({Key, _Value, Time}) 
-						when Now > Time -> 
-							Key end),
-	ets:delete(table, Fun).
+	delete_obsolete(ets:first(?MODULE), Now).
+
+delete_obsolete('$end_of_table',_) ->
+	table_clear;
+
+delete_obsolete(Key, Now) ->
+	NextKey = ets:next(?MODULE, Key),
+	[{_, _, Time}] = ets:lookup(?MODULE, Key),
+	if
+		Now > Time -> ets:delete(?MODULE, Key);
+		true -> true
+	end,
+	delete_obsolete(NextKey, Now).
 
 insert(Key, Value, Time)  ->
 	ets:insert(table, {Key, Value, (timenow()+Time)}).
