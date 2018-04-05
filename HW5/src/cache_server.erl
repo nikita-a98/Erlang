@@ -1,19 +1,27 @@
 -module(cache_server).
 -include_lib("stdlib/include/ms_transform.hrl").
 
--export([start_link/1, funk/1, create/0, all/0, create/1,  
+-behaviour(gen_server).
+
+%% API.
+-export([start_link/1, create/0, all/0, create/1,  
 	delete_obsolete/0, delete_obsolete/2, insert/3, 
-	lookup/1, lookup_by_date/2, timenow/0]).
+	lookup/1, lookup_by_date/2, timenow/0, stop/0]).
 
+%% gen_server.
+-export([init/1]).
+-export([handle_call/3]).
+-export([handle_cast/2]).
+-export([handle_info/2]).
+-export([terminate/2]).
+-export([code_change/3]).
 
-start_link([{drop_interval, Interv}]) ->
-	spawn(cache_server, funk, [Interv]).
+%% API.
+start_link([{drop_interval, State}]) ->
+	gen_server:start_link(?MODULE, State, []).
 
-funk(Interv) ->
-	delete_obsolete(),
-	timer:sleep(Interv),
-	funk(Interv).
-
+stop() ->
+    gen_server:cast(?MODULE, stop).
 
 create() ->
 	ets:new(?MODULE, [public, named_table]).
@@ -72,3 +80,32 @@ all() ->
 
 timenow() ->
 	calendar:datetime_to_gregorian_seconds(erlang:localtime()).
+
+
+%% gen_server.
+init(State) ->
+	create(),
+    erlang:send_after(State, self(), drop_obsolete),
+	{ok, State}.
+
+handle_call(_Request, _From, State) ->
+    {reply, ignored, State}.
+
+handle_cast(stop, State) ->
+    {stop, normal, State};
+
+handle_cast(_Msg, State) ->
+    {noreply, State}.
+
+handle_info(drop_obsolete, State) ->
+    delete_obsolete(),
+    erlang:send_after(State, self(), drop_obsolete),
+    {noreply, State};
+handle_info(_Info, State) ->
+    {noreply, State}.
+
+terminate(_Reason, _State) ->
+	ok.
+
+code_change(_OldVsn, State, _Extra) ->
+	{ok, State}.

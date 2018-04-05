@@ -1,4 +1,4 @@
-PROJECT = HW5
+PROJECT = Cache_server
 PROJECT_DESCRIPTION = New project
 PROJECT_VERSION = 0.1.0
 
